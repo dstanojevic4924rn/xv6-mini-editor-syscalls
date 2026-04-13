@@ -13,6 +13,8 @@
 #include "file.h"
 #include "fcntl.h"
 
+#include "buf.h"
+
 // Fetch the nth word-sized system call argument as a file descriptor
 // and return both the descriptor and the corresponding struct file.
 static int
@@ -436,5 +438,99 @@ sys_pipe(void)
 	}
 	fd[0] = fd0;
 	fd[1] = fd1;
+	return 0;
+}
+
+int
+sys_get_free_blocks(void)
+{
+	struct superblock sb;
+	struct buf *b;
+	int free = 0;
+	int i,j, bit;
+
+	readsb(ROOTDEV, &sb); //ucitava superblock
+	int bmap_blocks = (sb.nblocks + BPB - 1) / BPB;
+
+	for(i = 0; i < bmap_blocks; i++){
+		b = bread(ROOTDEV, sb.bmapstart + i);
+		if (b == 0){
+			return -1;
+		}
+		for(j = 0; j < BSIZE && (i*BSIZE*8 + j*8) < sb.nblocks; j++){
+			unsigned char byte = b->data[j];
+
+			for(bit = 0; bit < 8; bit++){
+				if((byte & (1 << bit)) == 0)
+					free++;
+			}
+		}
+		brelse(b);
+	}
+	return free;
+
+}
+
+int
+sys_get_file_blocks(void)
+{
+	int fd;
+	struct fileblks *ub;
+	struct file *f;
+	struct inode *ip;
+	int i, nblocks = 0;
+	uint addrs[NDIRECT +NINDIRECT];
+	struct buf *b;
+	uint *indirect;
+	struct proc *p = myproc();
+
+	if(argfd(0, &fd, &f) < 0 || argptr(1, (void*)&ub, sizeof(*ub)) < 0)
+		return -1;
+
+	ip =f->ip;
+	ilock(ip);
+
+	//direktni blokoci
+
+	for(i = 0; i < NDIRECT;i++){
+		addrs[i] = ip->addrs[i];
+		if(addrs[i] != 0 )
+			nblocks++;
+	}
+
+
+	//indirektni blokovi
+
+	if(ip->addrs[NDIRECT] != 0){
+		b = bread(ip->dev, ip->addrs[NDIRECT]);
+		indirect = (uint*)b->data;
+		for(i = 0; i< NINDIRECT; i++){
+			addrs[NDIRECT + i] = indirect[i];
+			if(indirect[i] != 0)
+				nblocks++;
+		}
+		brelse(b);
+	}
+	//preostali bajtovi u poslednjem bloku
+	int last_block_free = 0;
+	if(ip->size % BSIZE != 0)
+		last_block_free = BSIZE - (ip->size % BSIZE);
+
+
+
+	if(copyout(p->pgdir, (uint)ub->blocks, addrs, sizeof(addrs)) < 0 ||
+		copyout(p->pgdir, (uint)&ub->num_blocks, &nblocks, sizeof(int)) < 0 ||
+		copyout(p->pgdir, (uint)&ub->last_block_free, &last_block_free, sizeof(int)) < 0) {
+		iunlock(ip);
+	return -1;
+		}
+		iunlock(ip);
+
+
+	// if(copyout(ub, (void*)ub->blocks, addrs, sizeof(addrs)) < 0 || copyout(&ub->num_blocks, &nblocks, sizeof(int)) <0 || copyout(&ub->last_blocks_free, &last_blocks_free, sizeof(int)) <0){
+	// 	iunlock(ip);
+	// 	return -1;
+	// }
+	// iunlock(ip);
 	return 0;
 }
