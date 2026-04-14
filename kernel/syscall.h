@@ -25,5 +25,7 @@
 #define SYS_close  21
 #define SYS_get_free_blocks 22
 #define SYS_get_file_blocks 23
+#define SYS_get_cursor 24
+#define SYS_set_cursor 25
 
 #endif // KERNEL_SYSCALL_H

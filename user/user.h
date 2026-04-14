@@ -37,6 +37,8 @@ int sleep(int);
 int uptime(void);
 int get_free_blocks(void);
 int get_file_blocks(int, struct fileblks*);
+int get_cursor(void);
+int set_cursor(int);
 
 // ulib.c
 int stat(const char*, struct stat*);
