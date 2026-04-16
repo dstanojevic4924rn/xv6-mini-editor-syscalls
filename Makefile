@@ -200,7 +200,6 @@ UPROGS=\
 	$U/_freeblocks\
 	$U/_fileinfo\
 	$U/_editor\
-	$U/_testsyscalls\
 
 fs.img: $T/mkfs README $(UPROGS)
 	$T/mkfs fs.img README $(UPROGS)
