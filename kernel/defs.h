@@ -193,6 +193,9 @@ void            clearpteu(pde_t *pgdir, char *uva);
 // printf.c
 void            e9printf(const char* fmt, ...);
 
+
+int             count_free_blocks(void);
+void            free_inode_content(struct inode*);
 // number of elements in fixed-size array
 #define NELEM(x) (sizeof(x)/sizeof((x)[0]))
 

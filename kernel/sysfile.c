@@ -14,7 +14,6 @@
 #include "fcntl.h"
 
 #include "buf.h"
-
 // Fetch the nth word-sized system call argument as a file descriptor
 // and return both the descriptor and the corresponding struct file.
 static int
@@ -517,13 +516,13 @@ sys_get_file_blocks(void)
 		last_block_free = BSIZE - (ip->size % BSIZE);
 
 
-
+/*
 	if(copyout(p->pgdir, (uint)ub->blocks, addrs, sizeof(addrs)) < 0 ||
 		copyout(p->pgdir, (uint)&ub->num_blocks, &nblocks, sizeof(int)) < 0 ||
 		copyout(p->pgdir, (uint)&ub->last_block_free, &last_block_free, sizeof(int)) < 0) {
 		iunlock(ip);
 	return -1;
-		}
+		}*/
 		iunlock(ip);
 
 
@@ -532,5 +531,95 @@ sys_get_file_blocks(void)
 	// 	return -1;
 	// }
 	// iunlock(ip);
+	return 0;
+}
+
+int
+sys_read_path(void)
+{
+
+
+	char *path, *buf;
+	struct inode *ip;
+	int n;
+	char kbuf[4096];
+
+	if(argstr(0, &path) < 0 || argptr(1, &buf, 0) < 0)
+		return -1;
+
+	ip = namei(path);
+	if(ip == 0)
+		return -1;
+
+	if(ip->type == T_DEV){
+		iput(ip);
+		return -2;
+	}
+
+	ilock(ip);
+	n = ip->size;
+	if(n > sizeof(kbuf)) n = sizeof(kbuf);
+	if(readi(ip, kbuf, 0, n) != n){
+		iunlockput(ip);
+		return -1;
+	}
+	iunlockput(ip);
+
+	return n;
+}
+
+int
+sys_write_path(void)
+{
+
+	char *path, *buf;
+	int n;
+	struct inode *ip;
+	int exists;
+	int needed_bloks, free_blocks;
+	char kbuf[4096];
+
+	if(argstr(0, &path) < 0 || argptr(1, &buf, 0) < 0 ||argint(2, &n) < 0)
+		return -1;
+
+	if(n < 0 || n > sizeof(kbuf))
+		return -1;
+
+	needed_bloks = (n + BSIZE - 1) / BSIZE;
+	free_blocks = count_free_blocks();
+	if(free_blocks < needed_bloks)
+		return -3;
+
+	begin_op();
+
+	ip = namei(path);
+	exists = (ip != 0);
+
+	if(!exists){
+		ip = create(path, T_FILE, 0, 0);
+		if(ip == 0){
+			end_op();
+			return -1;
+		}
+		iunlock(ip);
+	} else{
+		if(ip->type == T_DEV){
+			iput(ip);
+			end_op();
+			return -2;
+		}
+		ilock(ip);
+
+		free_inode_content(ip);
+		iunlock(ip);
+	}
+
+	ilock(ip);
+	int ret = writei(ip, kbuf, 0, n);
+	iunlockput(ip);
+	end_op();
+
+	if(ret != n)
+		return -1;
 	return 0;
 }

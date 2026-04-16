@@ -104,6 +104,8 @@ extern int sys_get_free_blocks(void);
 extern int sys_get_file_blocks(void);
 extern int sys_get_cursor(void);
 extern int sys_set_cursor(void);
+extern int sys_read_path(void);
+extern int sys_write_path(void);
 
 static int (*syscalls[])(void) = {
 [SYS_fork]    sys_fork,
@@ -131,6 +133,8 @@ static int (*syscalls[])(void) = {
 [SYS_get_file_blocks] sys_get_file_blocks,
 [SYS_get_cursor] sys_get_cursor,
 [SYS_set_cursor] sys_set_cursor,
+[SYS_read_path] sys_read_path,
+[SYS_write_path] sys_write_path,
 };
 
 void

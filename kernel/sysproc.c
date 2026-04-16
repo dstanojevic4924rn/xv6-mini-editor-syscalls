@@ -88,7 +88,7 @@ sys_uptime(void)
 }
 
 // 0x3D4 je CRT_INDEX
-//0x3D5 je CRT_DATA
+// 0x3D5 je CRT_DATA
 int
 sys_get_cursor_pos(void)
 {

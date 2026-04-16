@@ -660,3 +660,34 @@ nameiparent(char *path, char *name)
 {
 	return namex(path, 1, name);
 }
+
+int
+count_free_blocks(void)
+{
+	struct superblock sb;
+	struct buf *b;
+	int free = 0;
+	int i, j, bit;
+
+	readsb(ROOTDEV, &sb);
+	int bmap_blocks = (sb.nblocks + BPB - 1) / BPB;
+
+	for(i = 0; i < bmap_blocks; i++){
+		b = bread(ROOTDEV, sb.bmapstart + i);
+		for(j = 0; j < BSIZE && (i*BSIZE*8 +j*8) <sb.nblocks; j++){
+			unsigned char byte = b->data[j];
+			for(bit = 0; bit<8; bit++){
+				if((byte & (1<<bit)) == 0)
+					free++;
+			}
+		}
+		brelse(b);
+	}
+	return free;
+}
+
+void
+free_inode_content(struct inode *ip)
+{
+	itrunc(ip);
+}
