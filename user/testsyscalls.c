@@ -370,18 +370,33 @@ int main(int argc, char *argv[]) {
     printf("\n========= PROSIRENI XV6 SYSCALL TESTS =========\n\n");
 
     printf("--- get_free_blocks ---\n");
+    test_gfb_returns_positive();
+    test_gfb_consistent();
+    test_gfb_decreases_on_write();
+    test_gfb_increases_on_delete();
 
     printf("\n--- read_path ---\n");
+    test_rp_nonexistent();
     test_rp_reads_full();
+    test_rp_empty_file();
     test_rp_large_indirect();
     test_rp_binary_content();
+    test_rp_device();
 
     printf("\n--- write_path ---\n");
+    test_wp_creates_new();
+    test_wp_overwrites();
     test_wp_overwrite_content();
+    test_wp_freed_blocks();
+    test_wp_device();
+    test_wp_zero_bytes();
     test_wp_large_indirect();
 
     printf("\n--- get_file_blocks ---\n");
     test_gfbl_valid();
+    test_gfbl_invalid_fd();
+    test_gfbl_negative_fd();
+    test_gfbl_closed_fd();
     test_gfbl_multi_block();
     test_gfbl_exact_block_size();
     test_gfbl_empty_file();
@@ -389,10 +404,12 @@ int main(int argc, char *argv[]) {
     test_gfbl_last_block_free_partial();
 
     printf("\n--- cursor ---\n");
+    test_cursor_get_in_range();
     test_cursor_set_get();
     test_cursor_invalid_negative();
     test_cursor_invalid_too_large();
-
+    test_cursor_boundary_zero();
+    test_cursor_boundary_max();
 
     printf("\n========= REZULTAT =========\n");
     printf("Prosli: %d / %d\n", passed, total);

@@ -89,34 +89,35 @@ sys_uptime(void)
 
 // 0x3D4 je CRT_INDEX
 // 0x3D5 je CRT_DATA
-int
-sys_get_cursor_pos(void)
-{
-	int pos;
-	outb(0x3D4, 14);
-	pos = inb(0x3D5) << 8;
-	outb(0x3D4, 15);
-	pos |= inb(0x3D5);
-	return pos;
-}
 
-static void
-sys_set_cursor_pos(int pos)
-{
-	if(pos < 0 || pos >=25*80) return;
-	outb(0X3D4, 14);
-	outb(0X3D5, pos >> 8);
-	outb(0X3D4, 15);
-	outb(0X3D5, pos);
-}
-
-int sys_get_cursor(void){
-	return sys_get_cursor_pos();
-}
-
-int sys_set_cursor(void){
-	int pos;
-	if(argint(0, &pos) < 0) return -1;
-	sys_set_cursor_pos(pos);
-	return 0;
-}
+// int
+// sys_get_cursor_pos(void)
+// {
+// 	int pos;
+// 	outb(0x3D4, 14);
+// 	pos = inb(0x3D5) << 8;
+// 	outb(0x3D4, 15);
+// 	pos |= inb(0x3D5);
+// 	return pos;
+// }
+//
+// static void
+// sys_set_cursor_pos(int pos)
+// {
+// 	if(pos < 0 || pos >=25*80) return;
+// 	outb(0X3D4, 14);
+// 	outb(0X3D5, pos >> 8);
+// 	outb(0X3D4, 15);
+// 	outb(0X3D5, pos);
+// }
+//
+// int sys_get_cursor(void){
+// 	return sys_get_cursor_pos();
+// }
+//
+// int sys_set_cursor(void){
+// 	int pos;
+// 	if(argint(0, &pos) < 0) return -1;
+// 	sys_set_cursor_pos(pos);
+// 	return 0;
+// }

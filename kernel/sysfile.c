@@ -12,8 +12,9 @@
 #include "fs.h"
 #include "file.h"
 #include "fcntl.h"
-
 #include "buf.h"
+#include "x86.h"  // NEOPHODNO ZA KURSOR (inb, outb)
+
 // Fetch the nth word-sized system call argument as a file descriptor
 // and return both the descriptor and the corresponding struct file.
 static int
@@ -153,7 +154,7 @@ sys_link(void)
 
 	return 0;
 
-bad:
+	bad:
 	ilock(ip);
 	ip->nlink--;
 	iupdate(ip);
@@ -185,7 +186,6 @@ sys_unlink(void)
 	struct dirent de;
 	char name[DIRSIZ], *path;
 	uint off;
-
 	if(argstr(0, &path) < 0)
 		return -1;
 
@@ -229,7 +229,7 @@ sys_unlink(void)
 
 	return 0;
 
-bad:
+	bad:
 	iunlockput(dp);
 	end_op();
 	return -1;
@@ -354,15 +354,15 @@ sys_mknod(void)
 
 	begin_op();
 	if((argstr(0, &path)) < 0 ||
-			argint(1, &major) < 0 ||
-			argint(2, &minor) < 0 ||
-			(ip = create(path, T_DEV, major, minor)) == 0){
+		argint(1, &major) < 0 ||
+		argint(2, &minor) < 0 ||
+		(ip = create(path, T_DEV, major, minor)) == 0){
 		end_op();
-		return -1;
-	}
-	iunlockput(ip);
-	end_op();
-	return 0;
+	return -1;
+		}
+		iunlockput(ip);
+		end_op();
+		return 0;
 }
 
 int
@@ -440,15 +440,19 @@ sys_pipe(void)
 	return 0;
 }
 
+
+
+extern void free_inode_content(struct inode *ip);
+
 int
 sys_get_free_blocks(void)
 {
 	struct superblock sb;
 	struct buf *b;
 	int free = 0;
-	int i,j, bit;
+	int i, j, bit;
 
-	readsb(ROOTDEV, &sb); //ucitava superblock
+	readsb(ROOTDEV, &sb);
 	int bmap_blocks = (sb.nblocks + BPB - 1) / BPB;
 
 	for(i = 0; i < bmap_blocks; i++){
@@ -456,10 +460,12 @@ sys_get_free_blocks(void)
 		if (b == 0){
 			return -1;
 		}
-		for(j = 0; j < BSIZE && (i*BSIZE*8 + j*8) < sb.nblocks; j++){
+		for(j = 0; j < BSIZE; j++){
 			unsigned char byte = b->data[j];
 
 			for(bit = 0; bit < 8; bit++){
+				// Ne brojimo bitove koji su van granica diska
+				if((i * BPB + j * 8 + bit) >= sb.nblocks) break;
 				if((byte & (1 << bit)) == 0)
 					free++;
 			}
@@ -467,8 +473,13 @@ sys_get_free_blocks(void)
 		brelse(b);
 	}
 	return free;
-
 }
+
+struct fileblks {
+	int blocks[12 + 128];
+	int num_blocks;
+	int last_block_free;
+};
 
 int
 sys_get_file_blocks(void)
@@ -478,73 +489,60 @@ sys_get_file_blocks(void)
 	struct file *f;
 	struct inode *ip;
 	int i, nblocks = 0;
-	uint addrs[NDIRECT +NINDIRECT];
+	uint addrs[NDIRECT + NINDIRECT];
 	struct buf *b;
 	uint *indirect;
-	struct proc *p = myproc();
 
 	if(argfd(0, &fd, &f) < 0 || argptr(1, (void*)&ub, sizeof(*ub)) < 0)
 		return -1;
 
-	ip =f->ip;
+	if(f->type != FD_INODE)
+		return -1;
+
+	ip = f->ip;
 	ilock(ip);
 
-	//direktni blokoci
+	memset(addrs, 0, sizeof(addrs));
 
-	for(i = 0; i < NDIRECT;i++){
+	for(i = 0; i < NDIRECT; i++){
 		addrs[i] = ip->addrs[i];
-		if(addrs[i] != 0 )
+		if(addrs[i] != 0)
 			nblocks++;
 	}
-
-
-	//indirektni blokovi
 
 	if(ip->addrs[NDIRECT] != 0){
 		b = bread(ip->dev, ip->addrs[NDIRECT]);
 		indirect = (uint*)b->data;
-		for(i = 0; i< NINDIRECT; i++){
+		for(i = 0; i < NINDIRECT; i++){
 			addrs[NDIRECT + i] = indirect[i];
 			if(indirect[i] != 0)
 				nblocks++;
 		}
 		brelse(b);
 	}
-	//preostali bajtovi u poslednjem bloku
+
 	int last_block_free = 0;
-	if(ip->size % BSIZE != 0)
+	if(ip->size > 0 && ip->size % BSIZE != 0)
 		last_block_free = BSIZE - (ip->size % BSIZE);
 
+	ub->num_blocks = nblocks;
+	for(i = 0; i < NDIRECT + NINDIRECT; i++) {
+		ub->blocks[i] = addrs[i];
+	}
+	ub->last_block_free = last_block_free;
 
-/*
-	if(copyout(p->pgdir, (uint)ub->blocks, addrs, sizeof(addrs)) < 0 ||
-		copyout(p->pgdir, (uint)&ub->num_blocks, &nblocks, sizeof(int)) < 0 ||
-		copyout(p->pgdir, (uint)&ub->last_block_free, &last_block_free, sizeof(int)) < 0) {
-		iunlock(ip);
-	return -1;
-		}*/
-		iunlock(ip);
-
-
-	// if(copyout(ub, (void*)ub->blocks, addrs, sizeof(addrs)) < 0 || copyout(&ub->num_blocks, &nblocks, sizeof(int)) <0 || copyout(&ub->last_blocks_free, &last_blocks_free, sizeof(int)) <0){
-	// 	iunlock(ip);
-	// 	return -1;
-	// }
-	// iunlock(ip);
+	iunlock(ip);
 	return 0;
 }
 
 int
 sys_read_path(void)
 {
-
-
 	char *path, *buf;
 	struct inode *ip;
 	int n;
-	char kbuf[4096];
 
-	if(argstr(0, &path) < 0 || argptr(1, &buf, 0) < 0)
+	if(argstr(0, &path) < 0)
 		return -1;
 
 	ip = namei(path);
@@ -558,68 +556,99 @@ sys_read_path(void)
 
 	ilock(ip);
 	n = ip->size;
-	if(n > sizeof(kbuf)) n = sizeof(kbuf);
-	if(readi(ip, kbuf, 0, n) != n){
+
+	if(n > 0 && argptr(1, &buf, n) < 0) {
+		iunlockput(ip);
+		return -1;
+	}
+
+	if(n > 0 && readi(ip, buf, 0, n) != n){
 		iunlockput(ip);
 		return -1;
 	}
 	iunlockput(ip);
 
-	return n;
+	return n; // vraća broj uspešno pročitanih bajtova
 }
 
 int
 sys_write_path(void)
 {
-
 	char *path, *buf;
 	int n;
 	struct inode *ip;
-	int exists;
-	int needed_bloks, free_blocks;
-	char kbuf[4096];
+	int needed_blocks, free_blocks;
 
-	if(argstr(0, &path) < 0 || argptr(1, &buf, 0) < 0 ||argint(2, &n) < 0)
+	if(argstr(0, &path) < 0 || argint(2, &n) < 0)
 		return -1;
 
-	if(n < 0 || n > sizeof(kbuf))
+	if(n < 0)
 		return -1;
 
-	needed_bloks = (n + BSIZE - 1) / BSIZE;
-	free_blocks = count_free_blocks();
-	if(free_blocks < needed_bloks)
+	if(n > 0 && argptr(1, &buf, n) < 0)
+		return -1;
+
+	needed_blocks = (n + BSIZE - 1) / BSIZE;
+	if (n == 0) needed_blocks = 0;
+	if (needed_blocks > NDIRECT) needed_blocks++;
+
+	free_blocks = sys_get_free_blocks();
+	if(free_blocks < needed_blocks)
 		return -3;
 
 	begin_op();
 
-	ip = namei(path);
-	exists = (ip != 0);
-
-	if(!exists){
-		ip = create(path, T_FILE, 0, 0);
-		if(ip == 0){
-			end_op();
-			return -1;
-		}
-		iunlock(ip);
-	} else{
-		if(ip->type == T_DEV){
-			iput(ip);
-			end_op();
-			return -2;
-		}
-		ilock(ip);
-
-		free_inode_content(ip);
-		iunlock(ip);
+	ip = create(path, T_FILE, 0, 0);
+	if(ip == 0){
+		end_op();
+		return -1;
 	}
 
-	ilock(ip);
-	int ret = writei(ip, kbuf, 0, n);
+	if(ip->type == T_DEV){
+		iunlockput(ip);
+		end_op();
+		return -2;
+	}
+
+	free_inode_content(ip);
+
+	int ret = 0;
+	if(n > 0){
+		ret = writei(ip, buf, 0, n);
+	}
+
 	iunlockput(ip);
 	end_op();
 
-	if(ret != n)
+	if(n > 0 && ret != n)
 		return -1;
+	return 0;
+}
+
+int
+sys_get_cursor(void)
+{
+	int pos;
+	outb(0x3d4, 14);
+	pos = inb(0x3d5) << 8;
+	outb(0x3d4, 15);
+	pos |= inb(0x3d5);
+	return pos;
+}
+
+int
+sys_set_cursor(void)
+{
+	int pos;
+	if(argint(0, &pos) < 0)
+		return -1;
+
+	if(pos < 0 || pos >= 25 * 80)
+		return -1;
+
+	outb(0x3d4, 14);
+	outb(0x3d5, pos >> 8);
+	outb(0x3d4, 15);
+	outb(0x3d5, pos & 0xFF);
 	return 0;
 }
