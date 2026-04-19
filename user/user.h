@@ -41,6 +41,7 @@ int get_cursor(void);
 int set_cursor(int);
 int read_path(char*, char*);
 int write_path(char*, char*, int);
+int get_inode_ref(char *path);
 
 // ulib.c
 int stat(const char*, struct stat*);

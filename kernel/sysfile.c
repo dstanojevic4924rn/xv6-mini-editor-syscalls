@@ -572,6 +572,28 @@ sys_read_path(void)
 }
 
 int
+sys_get_inode_ref(void){
+	char *path;
+	struct inode *ip;
+	int n;
+
+	if(argstr(0, &path) < 0)
+		return -1;
+
+	ip = namei(path);
+	if(ip == 0)
+		return -1;
+
+	ilock(ip);
+
+	n = ip->ref;
+
+
+	iunlockput(ip);
+	return n;
+}
+
+int
 sys_write_path(void)
 {
 	char *path, *buf;

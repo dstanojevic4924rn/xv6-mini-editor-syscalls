@@ -2,6 +2,7 @@
 #include "user/user.h"
 #include "kernel/fs.h"
 #include "kernel/fcntl.h"
+#include "kernel/stat.h"
 
 int main(int argc, char*argv[])
 {

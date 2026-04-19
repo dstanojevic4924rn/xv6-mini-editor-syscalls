@@ -13,11 +13,7 @@ int cursor_pos = 0;
 char cmd_msg[80];
 int show_stats = 0;
 
-struct fileblks {
-    int blocks[140];
-    int num_blocks;
-    int last_block_free;
-};
+
 struct fileblks current_fb;
 
 void draw_ui() {

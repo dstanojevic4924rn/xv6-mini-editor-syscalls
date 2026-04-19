@@ -29,5 +29,6 @@
 #define SYS_set_cursor 25
 #define SYS_read_path 26
 #define SYS_write_path 27
+#define SYS_get_inode_ref 28
 
 #endif // KERNEL_SYSCALL_H
