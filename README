@@ -1,4 +1,29 @@
-[![Review Assignment Due Date](https://classroom.github.com/assets/deadline-readme-button-22041afd0340ce965d47ae6ef1cefeee28c7c493a6346c4f15d667ab976d596c.svg)](https://classroom.github.com/a/MoQ8tHb_)
+# xv6 Mini Text Editor and File System Syscalls
+
+This project extends the xv6 file system with new system calls and includes the creation of interactive user space programs for file analysis and text editing. It requires a deep understanding of inode structures and disk block management.
+
+## Key Implementations
+
+1. Added system calls to read and write files via paths without using the process file descriptor table (read_path, write_path).
+2. Implemented calls to calculate total free blocks on the disk (get_free_blocks) and to map the physical blocks of a specific file (get_file_blocks).
+3. Added system calls to get and set the hardware cursor position directly from user space (get_cursor, set_cursor).
+4. Built a user space text editor that simulates a typewriter with direct hardware cursor control, a command mode, and unsaved change warnings.
+
+## User Programs
+
+1. freeblocks: Displays the total number of free blocks on the disk in both raw count and kilobytes.
+2. fileinfo: Shows the physical block addresses, total size, and remaining space in the last block for a given file.
+3. editor: An interactive text editor with save, stats, and quit commands, synchronized with the hardware cursor.
+
+## Technologies
+
+1. C programming language
+2. xv6 file system
+3. Inode structures and disk block allocation
+4. Custom system call implementation
+
+----
+
 xv6 is a re-implementation of Dennis Ritchie's and Ken Thompson's Unix
 Version 6 (v6).  xv6 loosely follows the structure and style of v6,
 but is implemented for a modern x86-based multiprocessor using ANSI C.
